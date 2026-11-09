@@ -1,0 +1,185 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                      String                 @id @default(cuid())
+  email                   String                 @unique
+  password                String
+  name                    String?
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+  resetToken              String?
+  resetTokenExpiry        DateTime?
+  encryptionSalt          String?
+  recoveryKeyEncrypted    String?
+  bills                   Bill[]
+  budgets                 Budget[]
+  categories              Category[]
+  chatSessions            ChatSession[]
+  debts                   Debt[]
+  notifications           Notification[]
+  recurringTransactions   RecurringTransaction[]
+  settings                Settings?
+  transactions            Transaction[]
+}
+
+model Transaction {
+  id                     String                @id @default(cuid())
+  userId                 String
+  amount                 Float
+  encryptedAmount        String?
+  categoryId             String
+  description            String?
+  encryptedDescription   String?
+  date                   DateTime              @default(now())
+  type                   String
+  createdAt              DateTime              @default(now())
+  recurringTransactionId String?
+  category               Category              @relation(fields: [categoryId], references: [id])
+  recurringTransaction   RecurringTransaction? @relation(fields: [recurringTransactionId], references: [id])
+  user                   User                  @relation(fields: [userId], references: [id])
+}
+
+model Budget {
+  id              String   @id @default(cuid())
+  userId          String
+  categoryId      String
+  limit           Float
+  encryptedLimit  String?
+  spent           Float    @default(0)
+  encryptedSpent  String?
+  month           Int
+  year            Int
+  rollover        Boolean  @default(false)
+  category        Category @relation(fields: [categoryId], references: [id])
+  user            User     @relation(fields: [userId], references: [id])
+}
+
+model Category {
+  id                    String                 @id @default(cuid())
+  userId                String?
+  name                  String
+  encryptedName         String?
+  color                 String
+  icon                  String
+  type                  String                 @default("EXPENSE")
+  bills                 Bill[]
+  budgets               Budget[]
+  user                  User?                  @relation(fields: [userId], references: [id])
+  recurringTransactions RecurringTransaction[]
+  transactions          Transaction[]
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("info")
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Settings {
+  id              String  @id @default(cuid())
+  userId          String  @unique
+  theme           String  @default("light")
+  currency        String  @default("USD")
+  notifications   Boolean @default(true)
+  budgetAlerts    Boolean @default(true)
+  weeklySummaries Boolean @default(true)
+  billReminders   Boolean @default(true)
+  reminderDays    Int     @default(3)
+  user            User    @relation(fields: [userId], references: [id])
+}
+
+model Bill {
+  id                 String   @id @default(cuid())
+  userId             String
+  name               String
+  amount             Float
+  encryptedAmount    String?
+  dueDate            DateTime
+  encryptedDueDate   String?
+  isPaid             Boolean  @default(false)
+  categoryId         String
+  createdAt          DateTime @default(now())
+  category           Category @relation(fields: [categoryId], references: [id])
+  user               User     @relation(fields: [userId], references: [id])
+}
+
+model Debt {
+  id               String      @id @default(cuid())
+  userId           String
+  personName       String
+  amount           Float
+  encryptedAmount  String?
+  type             String
+  date             DateTime    @default(now())
+  dueDate          DateTime?
+  notes            String?
+  encryptedNotes   String?
+  status           String      @default("PENDING")
+  createdAt        DateTime    @default(now())
+  user             User        @relation(fields: [userId], references: [id])
+  repayments       Repayment[]
+}
+
+model Repayment {
+  id               String   @id @default(cuid())
+  debtId           String
+  amount           Float
+  encryptedAmount  String?
+  date             DateTime @default(now())
+  notes            String?
+  encryptedNotes   String?
+  createdAt        DateTime @default(now())
+  debt             Debt     @relation(fields: [debtId], references: [id], onDelete: Cascade)
+}
+
+model RecurringTransaction {
+  id            String        @id @default(cuid())
+  userId        String
+  amount        Float
+  categoryId    String
+  description   String?
+  type          String
+  frequency     String
+  dayOfMonth    Int?
+  dayOfWeek     Int?
+  startDate     DateTime      @default(now())
+  endDate       DateTime?
+  isActive      Boolean       @default(true)
+  lastGenerated DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  category      Category      @relation(fields: [categoryId], references: [id])
+  user          User          @relation(fields: [userId], references: [id])
+  transactions  Transaction[]
+}
+
+model ChatSession {
+  id        String        @id @default(cuid())
+  userId    String
+  title     String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  messages  ChatMessage[]
+  user      User          @relation(fields: [userId], references: [id])
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  sessionId String
+  role      String
+  text      String
+  createdAt DateTime    @default(now())
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
